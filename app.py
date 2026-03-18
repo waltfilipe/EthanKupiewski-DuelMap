@@ -62,7 +62,9 @@ with col1:
         line_color='#4a4a4a'
     )
 
+    # Definimos um DPI fixo para que os pixels batam perfeitamente com a imagem gerada
     fig, ax = pitch.draw(figsize=(10, 7))
+    fig.set_dpi(100) 
 
     # Plot eventos
     for _, row in df.iterrows():
@@ -82,21 +84,17 @@ with col1:
     ax.set_title("Defensive & Duel Map")
 
     # ==========================
-    # Legenda (posição correta)
+    # Legenda 
     # ==========================
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label='Duel Won',
                markerfacecolor=(0, 0.6, 0, 0.9), markersize=10),
-
         Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Duel Lost',
                markersize=10, linewidth=2),
-
         Line2D([0], [0], marker='^', color='w', label='Aerial Won',
                markerfacecolor=(0.2, 0.3, 1, 0.9), markersize=10),
-
         Line2D([0], [0], marker='s', color='w', label='Fouled',
                markerfacecolor=(1, 0.6, 0, 0.9), markersize=10),
-
         Line2D([0], [0], marker='D', color='w', label='Interception',
                markerfacecolor=(0.3, 0.3, 0.3, 0.9), markersize=10),
     ]
@@ -109,13 +107,13 @@ with col1:
         framealpha=1
     )
 
-    # Salvar imagem com legenda
+    # Salvar imagem SEM o bbox_inches='tight'. 
+    # Isso garante que as dimensões originais da Figure sejam respeitadas em pixels.
     buf = BytesIO()
-    plt.savefig(buf, format="png", bbox_inches='tight', pad_inches=0.3)
+    plt.savefig(buf, format="png")
     buf.seek(0)
 
     image = Image.open(buf)
-
     click = streamlit_image_coordinates(image)
 
 # ==========================
@@ -124,14 +122,18 @@ with col1:
 selected_event = None
 
 if click is not None:
-    click_x = click["x"]
-    click_y = click["y"]
-
     img_w, img_h = image.size
+    
+    # O Streamlit retorna a origem (0,0) no canto superior esquerdo.
+    # O Matplotlib calcula com a origem no canto inferior esquerdo. Precisamos inverter o Y.
+    mpl_click_x = click["x"]
+    mpl_click_y = img_h - click["y"]
 
-    field_x = click_x * (120 / img_w)
-    field_y = click_y * (80 / img_h)
+    # Magia do Matplotlib: Transforma o pixel clicado diretamente para coordenadas do StatsBomb (x, y)
+    data_coords = ax.transData.inverted().transform((mpl_click_x, mpl_click_y))
+    field_x, field_y = data_coords[0], data_coords[1]
 
+    # Distância euclidiana baseada nos eixos do campo
     df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
 
     RADIUS = 5
@@ -147,13 +149,13 @@ if click is not None:
 # Vídeo
 # ==========================
 with col2:
-    st.subheader("Event")
+    st.subheader("Event Video")
 
     if selected_event is not None:
         st.write(f"**Type:** {selected_event['tipo']}")
         try:
             st.video(selected_event["video"])
         except:
-            st.warning("Not found.")
+            st.warning("Video file not found. Check the file path.")
     else:
-        st.info("Click on the event to watch.")
+        st.info("Click on a map event to watch.")
