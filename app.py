@@ -32,57 +32,52 @@ events_data = [
 ]
 df = pd.DataFrame(events_data, columns=["type", "x", "y", "video"])
 
-col1, col2 = st.columns([2, 1])
+# Changed column ratio to 1:1 for a more balanced look
+col1, col2 = st.columns([1, 1])
 
 def get_style(event_type):
-    if event_type == "DUEL LOST": return 'x', (1, 0, 0, 0.8), 120, 2.5
-    elif event_type == "DUEL WON": return 'o', (0, 0.6, 0, 0.9), 120, 0.5
-    elif event_type == "AERIAL WON": return '^', (0.2, 0.3, 1, 0.9), 140, 0.5
-    elif event_type == "FOULED": return 's', (1, 0.6, 0, 0.9), 120, 0.5
-    elif event_type == "INTERCEPTION": return 'D', (0.3, 0.3, 0.3, 0.9), 120, 0.5
+    if event_type == "DUEL LOST": return 'x', (1, 0, 0, 0.8), 80, 2.0
+    elif event_type == "DUEL WON": return 'o', (0, 0.6, 0, 0.9), 80, 0.5
+    elif event_type == "AERIAL WON": return '^', (0.2, 0.3, 1, 0.9), 100, 0.5
+    elif event_type == "FOULED": return 's', (1, 0.6, 0, 0.9), 80, 0.5
+    elif event_type == "INTERCEPTION": return 'D', (0.3, 0.3, 0.3, 0.9), 80, 0.5
 
 # ==========================
 # Map Visualization (Left Col)
 # ==========================
 with col1:
     pitch = Pitch(pitch_type='statsbomb', pitch_color='#f5f5f5', line_color='#4a4a4a')
-    # Increased figsize slightly to accommodate the arrow at the bottom
-    fig, ax = pitch.draw(figsize=(8, 6))
+    fig, ax = pitch.draw(figsize=(6, 4.5)) # Smaller internal figure size
     
-    # Plot events
     for _, row in df.iterrows():
         marker, color, size, lw = get_style(row["type"])
         pitch.scatter(row.x, row.y, marker=marker, s=size, color=color, 
                       edgecolors=color, linewidths=lw, ax=ax)
 
-    # Cleaned Title
-    ax.set_title("Defensive & Duel Analysis", fontsize=18, pad=20)
+    ax.set_title("Defensive & Duel Analysis", fontsize=14, pad=10)
 
-    # --- Attack Direction Arrow ---
-    # We place it just below the field (Y > 80 in StatsBomb coordinates)
-    ax.annotate('', xy=(80, 84), xytext=(40, 84),
-                arrowprops=dict(arrowstyle='->', color='#4a4a4a', lw=2))
-    ax.text(60, 87, "Direction of Attack", ha='center', va='center', 
-            fontsize=10, color='#4a4a4a', fontweight='bold')
+    # Attack Arrow
+    ax.annotate('', xy=(70, 83), xytext=(50, 83),
+                arrowprops=dict(arrowstyle='->', color='#4a4a4a', lw=1.2))
+    ax.text(60, 86, "Attack Direction", ha='center', va='center', 
+            fontsize=8, color='#4a4a4a', fontweight='bold')
 
-    # Legend setup
+    # Compact Legend
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='Duel Won', markerfacecolor=(0, 0.6, 0, 0.9), markersize=10),
-        Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Duel Lost', markersize=10, linewidth=2),
-        Line2D([0], [0], marker='^', color='w', label='Aerial Won', markerfacecolor=(0.2, 0.3, 1, 0.9), markersize=10),
-        Line2D([0], [0], marker='s', color='w', label='Fouled', markerfacecolor=(1, 0.6, 0, 0.9), markersize=10),
-        Line2D([0], [0], marker='D', color='w', label='Interception', markerfacecolor=(0.3, 0.3, 0.3, 0.9), markersize=10),
+        Line2D([0], [0], marker='o', color='w', label='Won', markerfacecolor=(0, 0.6, 0, 0.9), markersize=6),
+        Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Lost', markersize=6, linewidth=1.5),
+        Line2D([0], [0], marker='^', color='w', label='Aerial', markerfacecolor=(0.2, 0.3, 1, 0.9), markersize=6),
+        Line2D([0], [0], marker='s', color='w', label='Fouled', markerfacecolor=(1, 0.6, 0, 0.9), markersize=6),
     ]
-    ax.legend(handles=legend_elements, loc='upper left', frameon=True)
+    ax.legend(handles=legend_elements, loc='upper left', frameon=True, fontsize='x-small', ncol=2)
 
-    # Convert plot to image
     buf = BytesIO()
     plt.savefig(buf, format="png", dpi=100, bbox_inches='tight')
     buf.seek(0)
     image = Image.open(buf)
 
-    # Capture click
-    click = streamlit_image_coordinates(image, use_column_width=True)
+    # KEY CHANGE: Removed use_column_width and set a fixed width of 500 pixels
+    click = streamlit_image_coordinates(image, width=500)
 
 # ==========================
 # Coordinate Mapping Logic
@@ -97,15 +92,12 @@ if click is not None:
     pixel_y = click["y"] * (real_h / disp_h)
     
     mpl_pixel_y = real_h - pixel_y
-    
-    # Precise conversion using axes transformation
     coords = ax.transData.inverted().transform((pixel_x, mpl_pixel_y))
     field_x, field_y = coords[0], coords[1]
 
-    # Nearest neighbor search
     df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
     
-    RADIUS = 4 
+    RADIUS = 5 # Slightly larger radius for easier clicking on smaller display
     candidates = df[df["dist"] < RADIUS]
 
     if not candidates.empty:
@@ -123,4 +115,4 @@ with col2:
         except:
             st.error("Video file not found.")
     else:
-        st.info("Click on any marker on the map to play the video.")
+        st.info("Click on a marker to play.")
