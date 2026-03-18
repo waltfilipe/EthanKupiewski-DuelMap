@@ -77,7 +77,7 @@ with col1:
     image = Image.open(buf)
 
     # KEY CHANGE: Removed use_column_width and set a fixed width of 500 pixels
-    click = streamlit_image_coordinates(image, width=800)
+    click = streamlit_image_coordinates(image, width=850)
 
 # ==========================
 # Coordinate Mapping Logic
