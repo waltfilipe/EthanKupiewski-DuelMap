@@ -100,11 +100,13 @@ with col1:
         Line2D([0], [0], marker='D', color='w', label='Interception',
                markerfacecolor=(0.3, 0.3, 0.3, 0.9), markersize=10),
     ]
-
     ax.legend(
         handles=legend_elements,
         loc='upper left',
-        frameon=False
+        frameon=True,
+        facecolor='white',
+        edgecolor='black',
+        framealpha=1
     )
 
     # Salvar imagem com legenda
