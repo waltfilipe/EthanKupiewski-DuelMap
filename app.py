@@ -12,9 +12,9 @@ st.set_page_config(layout="wide")
 st.title("Defensive & Duel Map")
 
 # ==========================
-# Eventos + vídeos
+# Events + videos
 # ==========================
-eventos = [
+events = [
     ("FOULED", 89.09, 12.07, "videos/Fouled 1.mp4"),
     ("DUEL LOST", 101.23, 22.05, "videos/Duel Lost 0.mp4"),
     ("DUEL WON", 65.82, 69.09, "videos/Duel Won 1.mp4"),
@@ -29,66 +29,66 @@ eventos = [
     ("INTERCEPTION", 64.16, 20.38, "videos/Interception.mp4"),
 ]
 
-df = pd.DataFrame(eventos, columns=["tipo", "x", "y", "video"])
+df = pd.DataFrame(events, columns=["type", "x", "y", "video"])
 
 # ==========================
-# Layout
+# Style + radius (KEY FIX)
 # ==========================
-col1, col2 = st.columns([2, 1])
+def get_style(event_type):
+    if event_type == "DUEL LOST":
+        return 'x', (1, 0, 0, 0.8), 120, 2.5, 3.5
+    elif event_type == "DUEL WON":
+        return 'o', (0, 0.6, 0, 0.9), 120, 0.5, 3.5
+    elif event_type == "AERIAL WON":
+        return '^', (0.2, 0.3, 1, 0.9), 140, 0.5, 4.5  # MAIOR ÁREA
+    elif event_type == "FOULED":
+        return 's', (1, 0.6, 0, 0.9), 120, 0.5, 3.5
+    elif event_type == "INTERCEPTION":
+        return 'D', (0.3, 0.3, 0.3, 0.9), 120, 0.5, 3.5
 
 # ==========================
-# Função para estilo
+# Pitch
 # ==========================
-def get_style(tipo):
-    if tipo == "DUEL LOST":
-        return 'x', (1, 0, 0, 0.8), 120, 2.5
-    elif tipo == "DUEL WON":
-        return 'o', (0, 0.6, 0, 0.9), 120, 0.5
-    elif tipo == "AERIAL WON":
-        return '^', (0.2, 0.3, 1, 0.9), 140, 0.5
-    elif tipo == "FOULED":
-        return 's', (1, 0.6, 0, 0.9), 120, 0.5
-    elif tipo == "INTERCEPTION":
-        return 'D', (0.3, 0.3, 0.3, 0.9), 120, 0.5
+pitch = Pitch(
+    pitch_type='statsbomb',
+    pitch_color='#f5f5f5',
+    line_color='#4a4a4a'
+)
 
-# ==========================
-# Mapa como imagem clicável
-# ==========================
-with col1:
-    pitch = Pitch(
-        pitch_type='statsbomb',
-        pitch_color='#f5f5f5',
-        line_color='#4a4a4a'
+fig, ax = pitch.draw(figsize=(10, 7))
+
+for _, row in df.iterrows():
+    marker, color, size, lw, _ = get_style(row["type"])
+
+    pitch.scatter(
+        row.x,
+        row.y,
+        marker=marker,
+        s=size,
+        color=color,
+        edgecolors=color,
+        linewidths=lw,
+        ax=ax
     )
 
-    fig, ax = pitch.draw(figsize=(10, 7))
-
-    for _, row in df.iterrows():
-        marker, color, size, lw = get_style(row["tipo"])
-
-        pitch.scatter(
-            row.x,
-            row.y,
-            marker=marker,
-            s=size,
-            color=color,
-            edgecolors=color,
-            linewidths=lw,
-            ax=ax
-        )
-
-    ax.set_title("Defensive & Duel Map")
-
-    buf = BytesIO()
-    plt.savefig(buf, format="png", bbox_inches='tight')
-    buf.seek(0)
-    
-    image = Image.open(buf)
-    
-    click = streamlit_image_coordinates(image)
+ax.set_title("Click on an event")
 
 # ==========================
-# Detectar evento clicado
+# Convert image
+# ==========================
+buf = BytesIO()
+plt.savefig(buf, format="png", bbox_inches='tight')
+buf.seek(0)
+
+image = Image.open(buf)
+
+# CLICK
+click = streamlit_image_coordinates(image)
+
+st.image(image, use_container_width=True)
+
+# ==========================
+# Click detection (FIXED)
 # ==========================
 selected_event = None
 
@@ -96,35 +96,46 @@ if click is not None:
     click_x = click["x"]
     click_y = click["y"]
 
-    # converter clique para escala do campo
-    # ajuste baseado no tamanho padrão (importante!)
-    field_x = click_x * (120 / 1000)
-    field_y = click_y * (80 / 700)
+    # conversão REAL (sem hardcode)
+    img_w, img_h = image.size
 
-    # distância
-    df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
-    
-    # raio de tolerância (ajuste fino aqui)
-    RADIUS = 3  
-    
-    candidates = df[df["dist"] < RADIUS]
-    
-    if not candidates.empty:
-        selected_event = candidates.loc[candidates["dist"].idxmin()]
-    else:
-        selected_event = None
+    field_x = click_x * (120 / img_w)
+    field_y = click_y * (80 / img_h)
+
+    candidates = []
+
+    for i, row in df.iterrows():
+        _, _, _, _, radius = get_style(row["type"])
+
+        dist = np.sqrt((row["x"] - field_x)**2 + (row["y"] - field_y)**2)
+
+        if dist < radius:
+            candidates.append((i, dist, row["type"]))
+
+    if len(candidates) > 0:
+        # prioridade (AERIAL primeiro)
+        priority = {
+            "AERIAL WON": 1,
+            "DUEL WON": 2,
+            "DUEL LOST": 3,
+            "FOULED": 4,
+            "INTERCEPTION": 5
+        }
+
+        candidates = sorted(
+            candidates,
+            key=lambda x: (x[1], priority[x[2]])
+        )
+
+        selected_event = df.loc[candidates[0][0]]
 
 # ==========================
-# Vídeo
+# Video
 # ==========================
-with col2:
-    st.subheader("Event")
+st.markdown("---")
 
-    if selected_event is not None:
-        st.write(f"**Type:** {selected_event['tipo']}")
-        try:
-            st.video(selected_event["video"])
-        except:
-            st.warning("Not found.")
-    else:
-        st.info("Click on the event to watch.")
+if selected_event is not None:
+    st.subheader(f"Event: {selected_event['type']}")
+    st.video(selected_event["video"])
+else:
+    st.info("Click on an event to watch the video.")
