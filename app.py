@@ -64,6 +64,7 @@ with col1:
 
     fig, ax = pitch.draw(figsize=(10, 7))
 
+    # Plot eventos
     for _, row in df.iterrows():
         marker, color, size, lw = get_style(row["tipo"])
 
@@ -80,39 +81,40 @@ with col1:
 
     ax.set_title("Defensive & Duel Map")
 
+    # ==========================
+    # Legenda (posição correta)
+    # ==========================
+    legend_elements = [
+        Line2D([0], [0], marker='o', color='w', label='Duel Won',
+               markerfacecolor=(0, 0.6, 0, 0.9), markersize=10),
+
+        Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Duel Lost',
+               markersize=10, linewidth=2),
+
+        Line2D([0], [0], marker='^', color='w', label='Aerial Won',
+               markerfacecolor=(0.2, 0.3, 1, 0.9), markersize=10),
+
+        Line2D([0], [0], marker='s', color='w', label='Fouled',
+               markerfacecolor=(1, 0.6, 0, 0.9), markersize=10),
+
+        Line2D([0], [0], marker='D', color='w', label='Interception',
+               markerfacecolor=(0.3, 0.3, 0.3, 0.9), markersize=10),
+    ]
+
+    ax.legend(
+        handles=legend_elements,
+        loc='upper left',
+        frameon=False
+    )
+
+    # Salvar imagem com legenda
     buf = BytesIO()
-    plt.savefig(buf, format="png", bbox_inches='tight')
+    plt.savefig(buf, format="png", bbox_inches='tight', pad_inches=0.3)
     buf.seek(0)
 
     image = Image.open(buf)
 
     click = streamlit_image_coordinates(image)
-
-# ==========================
-# Legenda
-# ==========================
-legend_elements = [
-    Line2D([0], [0], marker='o', color='w', label='Duel Won',
-           markerfacecolor=(0, 0.6, 0, 0.9), markersize=10),
-
-    Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Duel Lost',
-           markersize=10, linewidth=2),
-
-    Line2D([0], [0], marker='^', color='w', label='Aerial Won',
-           markerfacecolor=(0.2, 0.3, 1, 0.9), markersize=10),
-
-    Line2D([0], [0], marker='s', color='w', label='Fouled',
-           markerfacecolor=(1, 0.6, 0, 0.9), markersize=10),
-
-    Line2D([0], [0], marker='D', color='w', label='Interception',
-           markerfacecolor=(0.3, 0.3, 0.3, 0.9), markersize=10),
-]
-
-ax.legend(
-    handles=legend_elements,
-    loc='upper left',
-    frameon=False
-)
 
 # ==========================
 # Detectar evento clicado
@@ -123,19 +125,13 @@ if click is not None:
     click_x = click["x"]
     click_y = click["y"]
 
-    # converter clique para escala do campo
-    # ajuste baseado no tamanho padrão (importante!)
-    # pegar tamanho REAL da imagem
     img_w, img_h = image.size
-    
-    # converter corretamente
+
     field_x = click_x * (120 / img_w)
     field_y = click_y * (80 / img_h)
 
-    # distância
     df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
 
-    # raio de tolerância (ajuste fino aqui)
     RADIUS = 5
 
     candidates = df[df["dist"] < RADIUS]
