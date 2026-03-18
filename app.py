@@ -6,6 +6,7 @@ from streamlit_image_coordinates import streamlit_image_coordinates
 from io import BytesIO
 import numpy as np
 from PIL import Image
+from matplotlib.lines import Line2D
 
 st.set_page_config(layout="wide")
 
@@ -86,6 +87,32 @@ with col1:
     image = Image.open(buf)
 
     click = streamlit_image_coordinates(image)
+
+# ==========================
+# Legenda
+# ==========================
+legend_elements = [
+    Line2D([0], [0], marker='o', color='w', label='Duel Won',
+           markerfacecolor=(0, 0.6, 0, 0.9), markersize=10),
+
+    Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Duel Lost',
+           markersize=10, linewidth=2),
+
+    Line2D([0], [0], marker='^', color='w', label='Aerial Won',
+           markerfacecolor=(0.2, 0.3, 1, 0.9), markersize=10),
+
+    Line2D([0], [0], marker='s', color='w', label='Fouled',
+           markerfacecolor=(1, 0.6, 0, 0.9), markersize=10),
+
+    Line2D([0], [0], marker='D', color='w', label='Interception',
+           markerfacecolor=(0.3, 0.3, 0.3, 0.9), markersize=10),
+]
+
+ax.legend(
+    handles=legend_elements,
+    loc='upper left',
+    frameon=False
+)
 
 # ==========================
 # Detectar evento clicado
