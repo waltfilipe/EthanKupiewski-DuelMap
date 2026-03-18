@@ -108,15 +108,13 @@ if click is not None:
 # Vídeo
 # ==========================
 with col2:
-    st.subheader("Evento selecionado")
+    st.subheader("Event")
 
     if selected_event is not None:
-        st.write(f"**Tipo:** {selected_event['tipo']}")
-        st.write(f"**Coordenadas:** ({selected_event['x']:.1f}, {selected_event['y']:.1f})")
-
+        st.write(f"**Type:** {selected_event['tipo']}")
         try:
             st.video(selected_event["video"])
         except:
-            st.warning("Vídeo não encontrado.")
+            st.warning("Not found.")
     else:
-        st.info("Clique em um evento no campo para ver o vídeo.")
+        st.info("Click on the event to watch.")
