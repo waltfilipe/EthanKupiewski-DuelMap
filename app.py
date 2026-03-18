@@ -101,8 +101,18 @@ if click is not None:
     field_x = click_x * (120 / 1000)
     field_y = click_y * (80 / 700)
 
+    # distância
     df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
-    selected_event = df.loc[df["dist"].idxmin()]
+    
+    # raio de tolerância (ajuste fino aqui)
+    RADIUS = 3  
+    
+    candidates = df[df["dist"] < RADIUS]
+    
+    if not candidates.empty:
+        selected_event = candidates.loc[candidates["dist"].idxmin()]
+    else:
+        selected_event = None
 
 # ==========================
 # Vídeo
