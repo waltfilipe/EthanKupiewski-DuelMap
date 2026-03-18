@@ -9,7 +9,7 @@ from PIL import Image
 from matplotlib.lines import Line2D
 
 # Page configuration
-st.set_page_config(layout="wide", page_title="Defensive Analysis")
+st.set_page_config(layout="wide", page_title="Duels Analysis")
 
 st.title("Defensive & Duel Map")
 
@@ -64,12 +64,24 @@ with col1:
 
     # Compact Legend
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='Won', markerfacecolor=(0, 0.6, 0, 0.9), markersize=6),
-        Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Lost', markersize=6, linewidth=1.5),
-        Line2D([0], [0], marker='^', color='w', label='Aerial', markerfacecolor=(0.2, 0.3, 1, 0.9), markersize=6),
-        Line2D([0], [0], marker='s', color='w', label='Fouled', markerfacecolor=(1, 0.6, 0, 0.9), markersize=6),
+        Line2D([0], [0], marker='o', color='w', label='Duel Won', markerfacecolor=(0, 0.6, 0, 0.9), markersize=9),
+        Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Duel Lost', markersize=9, linewidth=1.5),
+        Line2D([0], [0], marker='^', color='w', label='Aerial Won', markerfacecolor=(0.2, 0.3, 1, 0.9), markersize=9),
+        Line2D([0], [0], marker='s', color='w', label='Fouled', markerfacecolor=(1, 0.6, 0, 0.9), markersize=9),
+        Line2D([0], [0], marker='D', color='w', label='Interception', markerfacecolor=(0.3, 0.3, 0.3, 0.9), markersize=9),
     ]
-    ax.legend(handles=legend_elements, loc='upper left', frameon=True, fontsize='x-small', ncol=2)
+    
+    ax.legend(
+        handles=legend_elements, 
+        loc='upper left', 
+        bbox_to_anchor=(0.02, 0.98), # Ajuste fino da posição
+        frameon=True, 
+        fontsize='small',            # Tamanho mais equilibrado
+        handletextpad=1.0,           # Espaço entre ícone e texto
+        labelspacing=1.2,            # Espaço vertical entre as linhas da legenda
+        edgecolor='black',
+        facecolor='#ffffff'
+    )
 
     buf = BytesIO()
     plt.savefig(buf, format="png", dpi=100, bbox_inches='tight')
