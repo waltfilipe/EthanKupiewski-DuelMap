@@ -8,11 +8,15 @@ import numpy as np
 from PIL import Image
 from matplotlib.lines import Line2D
 
-st.set_page_config(layout="wide")
+# Page configuration
+st.set_page_config(layout="wide", page_title="Defensive Analysis")
+
 st.title("Defensive & Duel Map")
 
-# Dados originais
-eventos = [
+# ==========================
+# Data Setup
+# ==========================
+events_data = [
     ("FOULED", 89.09, 12.07, "videos/Fouled 1.mp4"),
     ("DUEL LOST", 101.23, 22.05, "videos/Duel Lost 0.mp4"),
     ("DUEL WON", 65.82, 69.09, "videos/Duel Won 1.mp4"),
@@ -26,89 +30,91 @@ eventos = [
     ("DUEL LOST", 56.34, 49.14, "videos/Duel Lost 6.mp4"),
     ("INTERCEPTION", 64.16, 20.38, "videos/Interception.mp4"),
 ]
-df = pd.DataFrame(eventos, columns=["tipo", "x", "y", "video"])
+df = pd.DataFrame(events_data, columns=["type", "x", "y", "video"])
 
 col1, col2 = st.columns([2, 1])
 
-def get_style(tipo):
-    if tipo == "DUEL LOST": return 'x', (1, 0, 0, 0.8), 120, 2.5
-    elif tipo == "DUEL WON": return 'o', (0, 0.6, 0, 0.9), 120, 0.5
-    elif tipo == "AERIAL WON": return '^', (0.2, 0.3, 1, 0.9), 140, 0.5
-    elif tipo == "FOULED": return 's', (1, 0.6, 0, 0.9), 120, 0.5
-    elif tipo == "INTERCEPTION": return 'D', (0.3, 0.3, 0.3, 0.9), 120, 0.5
+def get_style(event_type):
+    if event_type == "DUEL LOST": return 'x', (1, 0, 0, 0.8), 120, 2.5
+    elif event_type == "DUEL WON": return 'o', (0, 0.6, 0, 0.9), 120, 0.5
+    elif event_type == "AERIAL WON": return '^', (0.2, 0.3, 1, 0.9), 140, 0.5
+    elif event_type == "FOULED": return 's', (1, 0.6, 0, 0.9), 120, 0.5
+    elif event_type == "INTERCEPTION": return 'D', (0.3, 0.3, 0.3, 0.9), 120, 0.5
 
+# ==========================
+# Map Visualization (Left Col)
+# ==========================
 with col1:
     pitch = Pitch(pitch_type='statsbomb', pitch_color='#f5f5f5', line_color='#4a4a4a')
     fig, ax = pitch.draw(figsize=(10, 7))
     
-    # Plotagem
+    # Plot events
     for _, row in df.iterrows():
-        marker, color, size, lw = get_style(row["tipo"])
-        pitch.scatter(row.x, row.y, marker=marker, s=size, color=color, edgecolors=color, linewidths=lw, ax=ax)
+        marker, color, size, lw = get_style(row["type"])
+        pitch.scatter(row.x, row.y, marker=marker, s=size, color=color, 
+                      edgecolors=color, linewidths=lw, ax=ax)
 
-    ax.set_title("Defensive & Duel Map (X=0 Defesa | X=120 Ataque)", fontsize=15)
+    # Cleaned Title
+    ax.set_title("Defensive & Duel Analysis", fontsize=18, pad=20)
 
-    # Salvar para imagem
+    # Legend setup
+    legend_elements = [
+        Line2D([0], [0], marker='o', color='w', label='Duel Won', markerfacecolor=(0, 0.6, 0, 0.9), markersize=10),
+        Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Duel Lost', markersize=10, linewidth=2),
+        Line2D([0], [0], marker='^', color='w', label='Aerial Won', markerfacecolor=(0.2, 0.3, 1, 0.9), markersize=10),
+        Line2D([0], [0], marker='s', color='w', label='Fouled', markerfacecolor=(1, 0.6, 0, 0.9), markersize=10),
+        Line2D([0], [0], marker='D', color='w', label='Interception', markerfacecolor=(0.3, 0.3, 0.3, 0.9), markersize=10),
+    ]
+    ax.legend(handles=legend_elements, loc='upper left', frameon=True)
+
+    # Convert plot to image for click tracking
     buf = BytesIO()
-    # dpi=100 facilita a conta de conversão
     plt.savefig(buf, format="png", dpi=100)
     buf.seek(0)
     image = Image.open(buf)
 
-    # Captura o clique considerando o redimensionamento da coluna
+    # Capture click coordinates
     click = streamlit_image_coordinates(image, use_column_width=True)
 
 # ==========================
-# Lógica de Mapeamento Milimétrica
+# Coordinate Mapping Logic
 # ==========================
 selected_event = None
 
 if click is not None:
-    # 1. Tamanho real da imagem salva (em pixels)
+    # Scale click to original image dimensions
     real_w, real_h = image.size
-    
-    # 2. Tamanho da imagem exibida no navegador (em pixels)
     disp_w, disp_h = click["width"], click["height"]
     
-    # 3. Escalar o clique para o tamanho real da imagem
-    scale_x = real_w / disp_w
-    scale_y = real_h / disp_h
+    pixel_x = click["x"] * (real_w / disp_w)
+    pixel_y = click["y"] * (real_h / disp_h)
     
-    pixel_x = click["x"] * scale_x
-    pixel_y = click["y"] * scale_y
-    
-    # 4. Inverter o Y (Matplotlib: 0 é embaixo | Imagem: 0 é em cima)
+    # Invert Y for Matplotlib (bottom-up)
     mpl_pixel_y = real_h - pixel_y
     
-    # 5. Transformar pixel real em coordenada do campo (StatsBomb)
-    # O transformador transData.inverted() ignora margens, legendas e títulos automaticamente
+    # Map pixels back to Pitch coordinates (0-120, 0-80)
     coords = ax.transData.inverted().transform((pixel_x, mpl_pixel_y))
     field_x, field_y = coords[0], coords[1]
 
-    # Cálculo da distância para achar o evento
+    # Find the nearest event
     df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
     
-    # Raio de busca (4 unidades StatsBomb é um tamanho bom)
-    RADIUS = 4 
+    RADIUS = 4 # Click sensitivity
     candidates = df[df["dist"] < RADIUS]
 
     if not candidates.empty:
         selected_event = candidates.loc[candidates["dist"].idxmin()]
 
 # ==========================
-# Saída de Vídeo e Debug
+# Video Player (Right Col)
 # ==========================
 with col2:
-    st.subheader("Painel de Evento")
+    st.subheader("Video Analysis")
     if selected_event is not None:
-        st.success(f"**Evento:** {selected_event['tipo']}")
-        st.write(f"📍 **Coordenadas Reais:** ({selected_event['x']}, {selected_event['y']})")
-        
+        st.success(f"**Selected:** {selected_event['type']}")
         try:
             st.video(selected_event["video"])
         except:
-            st.error("Arquivo de vídeo não encontrado.")
+            st.error("Video file not found in the directory.")
     else:
-        st.info("Clique em um marcador no mapa.")
-        if click:
-            st.warning(f"Você clicou em ({field_x:.1f}, {field_y:.1f}), mas não há eventos aqui.")
+        st.info("Click on any icon on the map to load the corresponding video.")
