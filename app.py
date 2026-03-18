@@ -13,7 +13,7 @@ st.set_page_config(layout="wide")
 st.title("Defensive & Duel Map")
 
 # ==========================
-# Eventos + vídeos
+# Eventos (Dados inalterados)
 # ==========================
 eventos = [
     ("FOULED", 89.09, 12.07, "videos/Fouled 1.mp4"),
@@ -29,53 +29,33 @@ eventos = [
     ("DUEL LOST", 56.34, 49.14, "videos/Duel Lost 6.mp4"),
     ("INTERCEPTION", 64.16, 20.38, "videos/Interception.mp4"),
 ]
-
 df = pd.DataFrame(eventos, columns=["tipo", "x", "y", "video"])
 
-# ==========================
-# Layout
-# ==========================
 col1, col2 = st.columns([2, 1])
 
-# ==========================
-# Função para estilo
-# ==========================
 def get_style(tipo):
-    if tipo == "DUEL LOST":
-        return 'x', (1, 0, 0, 0.8), 120, 2.5
-    elif tipo == "DUEL WON":
-        return 'o', (0, 0.6, 0, 0.9), 120, 0.5
-    elif tipo == "AERIAL WON":
-        return '^', (0.2, 0.3, 1, 0.9), 140, 0.5
-    elif tipo == "FOULED":
-        return 's', (1, 0.6, 0, 0.9), 120, 0.5
-    elif tipo == "INTERCEPTION":
-        return 'D', (0.3, 0.3, 0.3, 0.9), 120, 0.5
+    if tipo == "DUEL LOST": return 'x', (1, 0, 0, 0.8), 120, 2.5
+    elif tipo == "DUEL WON": return 'o', (0, 0.6, 0, 0.9), 120, 0.5
+    elif tipo == "AERIAL WON": return '^', (0.2, 0.3, 1, 0.9), 140, 0.5
+    elif tipo == "FOULED": return 's', (1, 0.6, 0, 0.9), 120, 0.5
+    elif tipo == "INTERCEPTION": return 'D', (0.3, 0.3, 0.3, 0.9), 120, 0.5
 
-# ==========================
-# Mapa como imagem clicável
-# ==========================
 with col1:
-    pitch = Pitch(
-        pitch_type='statsbomb',
-        pitch_color='#f5f5f5',
-        line_color='#4a4a4a'
-    )
-
+    # 1. Criar o Pitch
+    pitch = Pitch(pitch_type='statsbomb', pitch_color='#f5f5f5', line_color='#4a4a4a')
     fig, ax = pitch.draw(figsize=(10, 7))
-    fig.set_dpi(100) # Fixando a densidade de pixels
+    
+    # IMPORTANTE: Fixar as margens para que o ax não "flutue"
+    # Isso garante que sabemos exatamente onde o campo está na imagem salva.
+    fig.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95)
 
-    # Plot eventos
     for _, row in df.iterrows():
         marker, color, size, lw = get_style(row["tipo"])
-        pitch.scatter(
-            row.x, row.y, marker=marker, s=size, color=color,
-            edgecolors=color, linewidths=lw, ax=ax
-        )
+        pitch.scatter(row.x, row.y, marker=marker, s=size, color=color, 
+                      edgecolors=color, linewidths=lw, ax=ax)
 
-    ax.set_title("Defensive & Duel Map")
+    ax.set_title("Defensive & Duel Map", fontsize=18)
 
-    # Legenda
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label='Duel Won', markerfacecolor=(0, 0.6, 0, 0.9), markersize=10),
         Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Duel Lost', markersize=10, linewidth=2),
@@ -83,68 +63,68 @@ with col1:
         Line2D([0], [0], marker='s', color='w', label='Fouled', markerfacecolor=(1, 0.6, 0, 0.9), markersize=10),
         Line2D([0], [0], marker='D', color='w', label='Interception', markerfacecolor=(0.3, 0.3, 0.3, 0.9), markersize=10),
     ]
-    ax.legend(handles=legend_elements, loc='upper left', frameon=True, facecolor='white', edgecolor='black', framealpha=1)
+    ax.legend(handles=legend_elements, loc='upper left', frameon=True)
 
-    # Salvar imagem
+    # 2. Obter a posição do AXIS dentro da FIGURA (em escala 0 a 1)
+    bbox = ax.get_position() # [x0, y0, width, height]
+    
+    # 3. Salvar a imagem SEM o bbox_inches='tight' 
+    # (O 'tight' é o que quebra a sua lógica, pois ele corta as bordas de forma imprevisível)
     buf = BytesIO()
-    plt.savefig(buf, format="png") # Sem bbox_inches para manter a proporção exata da figura
+    plt.savefig(buf, format="png", dpi=100) 
     buf.seek(0)
     image = Image.open(buf)
 
-    # === A MÁGICA ACONTECE AQUI ===
-    # 1. Pegamos as coordenadas extremas do campo do StatsBomb (0,0 até 120,80)
-    corners_data = np.array([[0, 0], [120, 80]]) 
-    
-    # 2. Descobrimos exatamente em quais pixels da imagem esses cantos foram desenhados
-    corners_display = ax.transData.transform(corners_data)
-    fig_h = fig.get_figheight() * fig.dpi
-    
-    px_left = corners_display[0, 0]
-    px_top = fig_h - corners_display[0, 1]
-    px_right = corners_display[1, 0]
-    px_bottom = fig_h - corners_display[1, 1]
-    # ===============================
-
-    # use_column_width=True ajusta o visual no Streamlit sem quebrar a proporção do clique
+    # Exibir imagem e capturar clique
     click = streamlit_image_coordinates(image, use_column_width=True)
 
 # ==========================
-# Detectar evento clicado
+# Lógica de mapeamento Precisa
 # ==========================
 selected_event = None
 
 if click is not None:
-    x_click = click["x"]
-    y_click = click["y"]
+    img_w, img_h = image.size
+    
+    # Coordenadas do clique normalizadas (0 a 1) em relação à imagem total
+    click_x_norm = click["x"] / img_w
+    click_y_norm = click["y"] / img_h
 
-    # Transformamos o clique em uma porcentagem (0.0 a 1.0) dentro do retângulo do campo
-    ratio_x = (x_click - px_left) / (px_right - px_left)
-    ratio_y = (y_click - px_top) / (px_bottom - px_top)
+    # Mapear o clique para dentro da área do AX (o campo)
+    # Statsbomb X: 0 (esquerda) a 120 (direita)
+    # Statsbomb Y: 0 (cima) a 80 (baixo)
+    
+    # Cálculo para X:
+    field_x = ((click_x_norm - bbox.x0) / bbox.width) * 120
+    
+    # Cálculo para Y (Matplotlib inverte o eixo Y em relação ao clique da imagem):
+    # O topo do campo no Statsbomb é 0. Na imagem, o topo é 0.
+    # Mas o bbox.y0 conta de baixo para cima.
+    field_y = ((click_y_norm - (1 - bbox.y1)) / bbox.height) * 80
 
-    # Multiplicamos a porcentagem pelas dimensões totais do StatsBomb (120x80)
-    field_x = ratio_x * 120
-    field_y = ratio_y * 80
+    # Filtro de segurança: verificar se o clique foi dentro do campo
+    if 0 <= field_x <= 120 and 0 <= field_y <= 80:
+        df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
+        
+        # Raio de busca (ajustável)
+        RADIUS = 4 
+        candidates = df[df["dist"] < RADIUS]
 
-    df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
-
-    RADIUS = 6 # Aumentei levemente a área de clique para melhorar a experiência do usuário
-
-    candidates = df[df["dist"] < RADIUS]
-
-    if not candidates.empty:
-        selected_event = candidates.loc[candidates["dist"].idxmin()]
+        if not candidates.empty:
+            selected_event = candidates.loc[candidates["dist"].idxmin()]
 
 # ==========================
-# Vídeo
+# Exibição do Vídeo
 # ==========================
 with col2:
-    st.subheader("Event Video")
-
+    st.subheader("Análise de Vídeo")
     if selected_event is not None:
-        st.write(f"**Type:** {selected_event['tipo']}")
+        st.success(f"Evento Selecionado: {selected_event['tipo']}")
+        st.info(f"Coordenadas Campo: ({selected_event['x']:.1f}, {selected_event['y']:.1f})")
         try:
             st.video(selected_event["video"])
         except:
-            st.warning("Video file not found.")
+            st.error("Vídeo não encontrado no caminho especificado.")
     else:
-        st.info("Click on a map event to watch.")
+        st.write("Clique em um ícone no mapa para carregar o vídeo correspondente.")
+        st.caption("Dica: Tente clicar exatamente no centro do ícone.")
