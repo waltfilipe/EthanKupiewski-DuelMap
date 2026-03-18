@@ -109,7 +109,7 @@ if click is not None:
     df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
 
     # raio de tolerância (ajuste fino aqui)
-    RADIUS = 3
+    RADIUS = 5
 
     candidates = df[df["dist"] < RADIUS]
 
