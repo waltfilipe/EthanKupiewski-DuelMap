@@ -98,8 +98,12 @@ if click is not None:
 
     # converter clique para escala do campo
     # ajuste baseado no tamanho padrão (importante!)
-    field_x = click_x * (120 / 1000)
-    field_y = click_y * (80 / 700)
+    # pegar tamanho REAL da imagem
+    img_w, img_h = image.size
+    
+    # converter corretamente
+    field_x = click_x * (120 / img_w)
+    field_y = click_y * (80 / img_h)
 
     # distância
     df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
