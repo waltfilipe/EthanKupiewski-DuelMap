@@ -5,6 +5,7 @@ import pandas as pd
 from streamlit_image_coordinates import streamlit_image_coordinates
 from io import BytesIO
 import numpy as np
+from PIL import Image
 
 st.set_page_config(layout="wide")
 
@@ -82,9 +83,10 @@ with col1:
     buf = BytesIO()
     plt.savefig(buf, format="png", bbox_inches='tight')
     buf.seek(0)
-
-    # imagem clicável
-    click = streamlit_image_coordinates(buf)
+    
+    image = Image.open(buf)
+    
+    click = streamlit_image_coordinates(image)
 
 # ==========================
 # Detectar evento clicado
