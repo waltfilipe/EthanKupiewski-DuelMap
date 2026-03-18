@@ -77,8 +77,9 @@ with col1:
         bbox_to_anchor=(0.02, 0.98), # Ajuste fino da posição
         frameon=True, 
         fontsize='small',            # Tamanho mais equilibrado
-        handletextpad=1.0,           # Espaço entre ícone e texto
-        labelspacing=1.2,            # Espaço vertical entre as linhas da legenda
+        framealpha=1.0,
+        handletextpad=0.8,           # Espaço entre ícone e texto
+        labelspacing=1.0,            # Espaço vertical entre as linhas da legenda
         edgecolor='black',
         facecolor='#ffffff'
     )
