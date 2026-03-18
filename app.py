@@ -11,18 +11,18 @@ st.title("Defensive & Duel Map")
 # Eventos + vídeos
 # ==========================
 eventos = [
-    ("FOULED", 89.09, 12.07, "videos/duelo_1.mp4"),
-    ("DUEL LOST", 101.23, 22.05, "videos/duelo_2.mp4"),
-    ("DUEL WON", 65.82, 69.09, "videos/duelo_3.mp4"),
-    ("DUEL WON", 69.14, 25.87, "videos/duelo_4.mp4"),
-    ("DUEL LOST", 26.75, 10.41, "videos/duelo_5.mp4"),
-    ("AERIAL WON", 76.62, 27.53, "videos/duelo_6.mp4"),
-    ("DUEL LOST", 109.04, 69.09, "videos/duelo_7.mp4"),
-    ("DUEL LOST", 85.93, 36.68, "videos/duelo_8.mp4"),
-    ("DUEL LOST", 76.12, 30.69, "videos/duelo_9.mp4"),
-    ("FOULED", 52.35, 55.63, "videos/duelo_10.mp4"),
-    ("DUEL LOST", 56.34, 49.14, "videos/duelo_11.mp4"),
-    ("INTERCEPTION", 64.16, 20.38, "videos/duelo_12.mp4"),
+    ("FOULED", 89.09, 12.07, "videos/Fouled 1.mp4"),
+    ("DUEL LOST", 101.23, 22.05, "videos/Duel Lost 0.mp4"),
+    ("DUEL WON", 65.82, 69.09, "videos/Duel Won 1.mp4"),
+    ("DUEL WON", 69.14, 25.87, "videos/Duel Won 2.mp4"),
+    ("DUEL LOST", 26.75, 10.41, "videos/Duel Lost 1.mp4"),
+    ("AERIAL WON", 76.62, 27.53, "videos/Aeriel Won 1.mp4"),
+    ("DUEL LOST", 109.04, 69.09, "videos/Duel Lost 2.mp4"),
+    ("DUEL LOST", 85.93, 36.68, "videos/Duel Lost 3.mp4"),
+    ("DUEL LOST", 76.12, 30.69, "videos/Duel Lost 4.mp4"),
+    ("FOULED", 52.35, 55.63, "videos/Fouled 2.mp4"),
+    ("DUEL LOST", 56.34, 49.14, "videos/Duel Lost 6.mp4"),
+    ("INTERCEPTION", 64.16, 20.38, "videos/Interception.mp4"),
 ]
 
 df = pd.DataFrame(eventos, columns=["tipo", "x", "y", "video"])
