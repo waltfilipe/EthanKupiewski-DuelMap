@@ -62,59 +62,51 @@ with col1:
         line_color='#4a4a4a'
     )
 
-    # Definimos um DPI fixo para que os pixels batam perfeitamente com a imagem gerada
     fig, ax = pitch.draw(figsize=(10, 7))
-    fig.set_dpi(100) 
+    fig.set_dpi(100) # Fixando a densidade de pixels
 
     # Plot eventos
     for _, row in df.iterrows():
         marker, color, size, lw = get_style(row["tipo"])
-
         pitch.scatter(
-            row.x,
-            row.y,
-            marker=marker,
-            s=size,
-            color=color,
-            edgecolors=color,
-            linewidths=lw,
-            ax=ax
+            row.x, row.y, marker=marker, s=size, color=color,
+            edgecolors=color, linewidths=lw, ax=ax
         )
 
     ax.set_title("Defensive & Duel Map")
 
-    # ==========================
-    # Legenda 
-    # ==========================
+    # Legenda
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='Duel Won',
-               markerfacecolor=(0, 0.6, 0, 0.9), markersize=10),
-        Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Duel Lost',
-               markersize=10, linewidth=2),
-        Line2D([0], [0], marker='^', color='w', label='Aerial Won',
-               markerfacecolor=(0.2, 0.3, 1, 0.9), markersize=10),
-        Line2D([0], [0], marker='s', color='w', label='Fouled',
-               markerfacecolor=(1, 0.6, 0, 0.9), markersize=10),
-        Line2D([0], [0], marker='D', color='w', label='Interception',
-               markerfacecolor=(0.3, 0.3, 0.3, 0.9), markersize=10),
+        Line2D([0], [0], marker='o', color='w', label='Duel Won', markerfacecolor=(0, 0.6, 0, 0.9), markersize=10),
+        Line2D([0], [0], marker='x', color=(1, 0, 0, 0.8), label='Duel Lost', markersize=10, linewidth=2),
+        Line2D([0], [0], marker='^', color='w', label='Aerial Won', markerfacecolor=(0.2, 0.3, 1, 0.9), markersize=10),
+        Line2D([0], [0], marker='s', color='w', label='Fouled', markerfacecolor=(1, 0.6, 0, 0.9), markersize=10),
+        Line2D([0], [0], marker='D', color='w', label='Interception', markerfacecolor=(0.3, 0.3, 0.3, 0.9), markersize=10),
     ]
-    ax.legend(
-        handles=legend_elements,
-        loc='upper left',
-        frameon=True,
-        facecolor='white',
-        edgecolor='black',
-        framealpha=1
-    )
+    ax.legend(handles=legend_elements, loc='upper left', frameon=True, facecolor='white', edgecolor='black', framealpha=1)
 
-    # Salvar imagem SEM o bbox_inches='tight'. 
-    # Isso garante que as dimensões originais da Figure sejam respeitadas em pixels.
+    # Salvar imagem
     buf = BytesIO()
-    plt.savefig(buf, format="png")
+    plt.savefig(buf, format="png") # Sem bbox_inches para manter a proporção exata da figura
     buf.seek(0)
-
     image = Image.open(buf)
-    click = streamlit_image_coordinates(image)
+
+    # === A MÁGICA ACONTECE AQUI ===
+    # 1. Pegamos as coordenadas extremas do campo do StatsBomb (0,0 até 120,80)
+    corners_data = np.array([[0, 0], [120, 80]]) 
+    
+    # 2. Descobrimos exatamente em quais pixels da imagem esses cantos foram desenhados
+    corners_display = ax.transData.transform(corners_data)
+    fig_h = fig.get_figheight() * fig.dpi
+    
+    px_left = corners_display[0, 0]
+    px_top = fig_h - corners_display[0, 1]
+    px_right = corners_display[1, 0]
+    px_bottom = fig_h - corners_display[1, 1]
+    # ===============================
+
+    # use_column_width=True ajusta o visual no Streamlit sem quebrar a proporção do clique
+    click = streamlit_image_coordinates(image, use_column_width=True)
 
 # ==========================
 # Detectar evento clicado
@@ -122,28 +114,25 @@ with col1:
 selected_event = None
 
 if click is not None:
-    img_w, img_h = image.size
-    
-    # O Streamlit retorna a origem (0,0) no canto superior esquerdo.
-    # O Matplotlib calcula com a origem no canto inferior esquerdo. Precisamos inverter o Y.
-    mpl_click_x = click["x"]
-    mpl_click_y = img_h - click["y"]
+    x_click = click["x"]
+    y_click = click["y"]
 
-    # Magia do Matplotlib: Transforma o pixel clicado diretamente para coordenadas do StatsBomb (x, y)
-    data_coords = ax.transData.inverted().transform((mpl_click_x, mpl_click_y))
-    field_x, field_y = data_coords[0], data_coords[1]
+    # Transformamos o clique em uma porcentagem (0.0 a 1.0) dentro do retângulo do campo
+    ratio_x = (x_click - px_left) / (px_right - px_left)
+    ratio_y = (y_click - px_top) / (px_bottom - px_top)
 
-    # Distância euclidiana baseada nos eixos do campo
+    # Multiplicamos a porcentagem pelas dimensões totais do StatsBomb (120x80)
+    field_x = ratio_x * 120
+    field_y = ratio_y * 80
+
     df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
 
-    RADIUS = 5
+    RADIUS = 6 # Aumentei levemente a área de clique para melhorar a experiência do usuário
 
     candidates = df[df["dist"] < RADIUS]
 
     if not candidates.empty:
         selected_event = candidates.loc[candidates["dist"].idxmin()]
-    else:
-        selected_event = None
 
 # ==========================
 # Vídeo
@@ -156,6 +145,6 @@ with col2:
         try:
             st.video(selected_event["video"])
         except:
-            st.warning("Video file not found. Check the file path.")
+            st.warning("Video file not found.")
     else:
         st.info("Click on a map event to watch.")
