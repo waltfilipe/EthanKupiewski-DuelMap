@@ -2,6 +2,9 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from mplsoccer import Pitch
 import pandas as pd
+from streamlit_image_coordinates import streamlit_image_coordinates
+from io import BytesIO
+import numpy as np
 
 st.set_page_config(layout="wide")
 
@@ -28,12 +31,27 @@ eventos = [
 df = pd.DataFrame(eventos, columns=["tipo", "x", "y", "video"])
 
 # ==========================
-# Layout (mapa + vídeo)
+# Layout
 # ==========================
 col1, col2 = st.columns([2, 1])
 
 # ==========================
-# Mapa
+# Função para estilo
+# ==========================
+def get_style(tipo):
+    if tipo == "DUEL LOST":
+        return 'x', (1, 0, 0, 0.8), 120, 2.5
+    elif tipo == "DUEL WON":
+        return 'o', (0, 0.6, 0, 0.9), 120, 0.5
+    elif tipo == "AERIAL WON":
+        return '^', (0.2, 0.3, 1, 0.9), 140, 0.5
+    elif tipo == "FOULED":
+        return 's', (1, 0.6, 0, 0.9), 120, 0.5
+    elif tipo == "INTERCEPTION":
+        return 'D', (0.3, 0.3, 0.3, 0.9), 120, 0.5
+
+# ==========================
+# Mapa como imagem clicável
 # ==========================
 with col1:
     pitch = Pitch(
@@ -44,37 +62,8 @@ with col1:
 
     fig, ax = pitch.draw(figsize=(10, 7))
 
-    for i, row in df.iterrows():
-
-        if row["tipo"] == "DUEL LOST":
-            marker = 'x'
-            color = (1, 0, 0, 0.8)
-            size = 120
-            lw = 2.5
-
-        elif row["tipo"] == "DUEL WON":
-            marker = 'o'
-            color = (0, 0.6, 0, 0.9)
-            size = 120
-            lw = 0.5
-
-        elif row["tipo"] == "AERIAL WON":
-            marker = '^'
-            color = (0.2, 0.3, 1, 0.9)
-            size = 140
-            lw = 0.5
-
-        elif row["tipo"] == "FOULED":
-            marker = 's'
-            color = (1, 0.6, 0, 0.9)
-            size = 120
-            lw = 0.5
-
-        elif row["tipo"] == "INTERCEPTION":
-            marker = 'D'
-            color = (0.3, 0.3, 0.3, 0.9)
-            size = 120
-            lw = 0.5
+    for _, row in df.iterrows():
+        marker, color, size, lw = get_style(row["tipo"])
 
         pitch.scatter(
             row.x,
@@ -87,50 +76,46 @@ with col1:
             ax=ax
         )
 
-        # NUMERAÇÃO (importante para selecionar depois)
-        ax.text(row.x, row.y, str(i),
-                ha='center', va='center',
-                fontsize=8, color='white')
+    ax.set_title("Defensive & Duel Map")
 
-    # legenda
-    ax.scatter([], [], marker='o', color='green', label='Duel Won')
-    ax.scatter([], [], marker='x', color='red', label='Duel Lost')
-    ax.scatter([], [], marker='^', color='blue', label='Aerial Won')
-    ax.scatter([], [], marker='s', color='orange', label='Fouled')
-    ax.scatter([], [], marker='D', color='gray', label='Interception')
+    # salvar imagem em buffer
+    buf = BytesIO()
+    plt.savefig(buf, format="png", bbox_inches='tight')
+    buf.seek(0)
 
-    ax.legend(
-        loc='upper left',
-        framealpha=1.0,
-        facecolor='white',
-        edgecolor='black'
-    )
-
-    plt.title("Defensive & Duel Map", fontsize=14)
-
-    st.pyplot(fig)
+    # imagem clicável
+    click = streamlit_image_coordinates(buf)
 
 # ==========================
-# Seleção + vídeo
+# Detectar evento clicado
+# ==========================
+selected_event = None
+
+if click is not None:
+    click_x = click["x"]
+    click_y = click["y"]
+
+    # converter clique para escala do campo
+    # ajuste baseado no tamanho padrão (importante!)
+    field_x = click_x * (120 / 1000)
+    field_y = click_y * (80 / 700)
+
+    df["dist"] = np.sqrt((df["x"] - field_x)**2 + (df["y"] - field_y)**2)
+    selected_event = df.loc[df["dist"].idxmin()]
+
+# ==========================
+# Vídeo
 # ==========================
 with col2:
-    st.subheader("Selecionar evento")
+    st.subheader("Evento selecionado")
 
-    evento_selecionado = st.selectbox(
-        "Escolha o duelo:",
-        df.index,
-        format_func=lambda x: f"{x} - {df.loc[x, 'tipo']}"
-    )
+    if selected_event is not None:
+        st.write(f"**Tipo:** {selected_event['tipo']}")
+        st.write(f"**Coordenadas:** ({selected_event['x']:.1f}, {selected_event['y']:.1f})")
 
-    linha = df.loc[evento_selecionado]
-
-    st.write(f"**Tipo:** {linha['tipo']}")
-    st.write(f"**Coordenadas:** ({linha['x']:.1f}, {linha['y']:.1f})")
-
-    # ==========================
-    # Vídeo
-    # ==========================
-    try:
-        st.video(linha["video"])
-    except:
-        st.warning("Vídeo não encontrado.")
+        try:
+            st.video(selected_event["video"])
+        except:
+            st.warning("Vídeo não encontrado.")
+    else:
+        st.info("Clique em um evento no campo para ver o vídeo.")
