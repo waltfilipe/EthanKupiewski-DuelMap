@@ -47,7 +47,7 @@ def get_style(event_type):
 with col1:
     pitch = Pitch(pitch_type='statsbomb', pitch_color='#f5f5f5', line_color='#4a4a4a')
     # Increased figsize slightly to accommodate the arrow at the bottom
-    fig, ax = pitch.draw(figsize=(10, 8))
+    fig, ax = pitch.draw(figsize=(8, 6))
     
     # Plot events
     for _, row in df.iterrows():
