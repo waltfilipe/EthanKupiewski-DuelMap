@@ -47,7 +47,7 @@ def get_style(event_type):
 # ==========================
 with col1:
     pitch = Pitch(pitch_type='statsbomb', pitch_color='#f5f5f5', line_color='#4a4a4a')
-    fig, ax = pitch.draw(figsize=(6, 4.5)) # Smaller internal figure size
+    fig, ax = pitch.draw(figsize=(8, 6)) # Smaller internal figure size
     
     for _, row in df.iterrows():
         marker, color, size, lw = get_style(row["type"])
@@ -77,7 +77,7 @@ with col1:
     image = Image.open(buf)
 
     # KEY CHANGE: Removed use_column_width and set a fixed width of 500 pixels
-    click = streamlit_image_coordinates(image, width=850)
+    click = streamlit_image_coordinates(image, width=800)
 
 # ==========================
 # Coordinate Mapping Logic
